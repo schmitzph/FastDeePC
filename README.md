@@ -1,4 +1,4 @@
-# fastDeePC
+# FastDeePC
 
 This repository contains the Matlab implementation of algorithms presented in
 
