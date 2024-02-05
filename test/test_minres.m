@@ -1,5 +1,3 @@
-%%%%%%%%% Test augmented Lagrangian limited-memory BFGS
-
 clear
 close all
 rng(123) % random seed
@@ -34,7 +32,8 @@ m = r*L;
 %   min_(x,u)     sum_k ||xk-wx||_Qx^2 + ||uk-wu||_Qu^2 + reg*||uk||^2
 %   s.t. xkk = Axk + Buk,     x0 = w0
 
-Q = ones(m,1); % weigths in OCP
+Q = ones(m,1); % [Qx,Qu]
+%Q(m-r+1:m-r+stateDim) = 0.0;
 reg = 0.0; % regularization parameter
 
 % (random) initial conditon x0 and reference stored in w
@@ -45,25 +44,32 @@ ind = (m-(stateDim+inputDim)+1:m-inputDim);
 w(ind) = x0;
 Q(ind) = 0.0;
 
-% al lBFGS parameters
-maxiter = 1000;
-maxcor = 1000;
-gtol = 1e-5;
-murange = linspace(1.0e1,1.0e+5,10);
-z = [];
-lamb = [];
-debug = true;
-
-
-z = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, murange, z, lamb, debug);
+TtQw = transposeFastToeplitz(Q.*w,Lam,r,N,L);
+rhs = [TtQw; -x0];
+[vec,flag,~,iter_minres,res_minres] = minres(@optSys, rhs, 1e-4,10000,[],[],[], Lam, r, N, L, Q, ind);
+z = vec(1:N-L+1);
 [c, feas] = cost(z,Lam, r, N, L, w, Q, ind);
 fprintf('\nfeasability violation: %e\t cost: %e\n', feas, c);
 
-% show trajectory
-[X_,U_] = z2trajectory(z, Lam, r, N, L, stateDim);
+[X_,U_] = z2trajectory(vec(1:N-L+1), Lam, r, N, L, stateDim);
 
 figure
 hold on
 plot(X_', 'r')
 plot(U_', 'b');
 
+
+function fval = optSys(vec, Lam, r, N, L, Q, ind)
+    m = r*L;
+    n = N-L+1;
+    z = vec(1:n);
+    lamb = vec(n+1:end);
+    lamb_ = zeros(m,1);
+    lamb_(ind) = lamb;
+    Tz = fastToeplitz(z,Lam,r,N,L);
+    QTz = Q.*Tz;
+    TtQTz = transposeFastToeplitz(QTz,Lam,r,N,L);
+    Ttlamb = transposeFastToeplitz(lamb_,Lam,r,N,L);
+    fval = [TtQTz - Ttlamb; -Tz(ind)];
+    return
+end
