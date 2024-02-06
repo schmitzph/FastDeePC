@@ -46,24 +46,23 @@ w(ind) = x0;
 Q(ind) = 0.0;
 
 % al lBFGS parameters
-maxiter = 1000;
+maxiter = 200;
 maxcor = 1000;
 gtol = 1e-5;
+ftol = 1e-10;
 murange = linspace(1.0e1,1.0e+5,10);
 z = [];
 lamb = [];
-debug = true;
+verb = true;
 
 
-z = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, murange, z, lamb, debug);
-[c, feas] = cost(z,Lam, r, N, L, w, Q, ind);
-fprintf('\nfeasability violation: %e\t cost: %e\n', feas, c);
+[z, flag, iter, resvec] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, ftol, murange, z, lamb, verb, true);
 
 % show trajectory
 [X_,U_] = z2trajectory(z, Lam, r, N, L, stateDim);
 
-figure
-hold on
-plot(X_', 'r')
-plot(U_', 'b');
+% figure
+% hold on
+% plot(X_', 'r')
+% plot(U_', 'b');
 

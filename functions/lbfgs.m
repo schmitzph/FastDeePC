@@ -1,4 +1,4 @@
-function z = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb, maxiter, maxcor, reg, gtol, debug)
+function [z, flag, iter, resvec, Hinv] = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb, maxiter, maxcor, reg, gtol, verb, gd)
 %LBFGS limited-memory BFGS
 
 %   z0 intial guess for solution
@@ -22,13 +22,25 @@ function z = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb, maxiter, maxcor, reg, gtol
 
 %   reg regularization parameter in OCP
 
-    if nargin<14 || isempty(debug)
-        debug = false;
+%   z solution
+
+%   flag=0 convergence, flag=1 not converged
+
+%   sequence of all residual norms
+
+    if nargin<14 || isempty(verb)
+        verb = false;
+    end
+
+    if nargin<15 || isempty(gd)
+        gd = false;
     end
 
     % dimenstions of the Toeplitz matrix T
     m = r*L;
     n = N-L+1;
+
+    flag = 1;
 
     Qw = Q.*w;
     TtQw = transposeFastToeplitz(Qw,Lam,r,N,L);
@@ -47,8 +59,11 @@ function z = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb, maxiter, maxcor, reg, gtol
     S = zeros(n,maxiter);
     Y = zeros(n,maxiter);
     rho = zeros(maxiter);
+
+    resvec = zeros(maxiter+1,1);
     
-    function q = inverse_hesse(z,k) % limited mermory inverse Hessian update
+    % limited mermory inverse Hessian update
+    function q = inverse_hesse(z,k)
         q = z; % inverse Hessian approxmiate initialized as identity
         if k==1
             return
@@ -67,21 +82,38 @@ function z = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb, maxiter, maxcor, reg, gtol
         end
         return
     end
+
+    % returns numerical inverse Hessian approximate
+    function Hinv = get_inverse_hess(k)
+        Hinv = eye(n);
+        for i = 1:n
+            Hinv(:,i) = inverse_hesse(Hinv(:,i),k);
+        end
+    end
     
     k = 0;
-
-    while k<=maxiter
+    
+    % BFGS loop
+    while k<=maxiter-1
         k = k+1;
 
         normgk = norm(gk);
+        res = norm([gk; Tzk(ind)-w(ind)]); % residuum
+        resvec(k) = res;
+
+        % check convergence
         if normgk <= gtol
-            fprintf('\nConverged after %i steps, gnorm: %e\n', k-1, normgk)
-            z = zk;
-            return
+            flag = 0;
+            break
         end
     
         % new search direction
-        pk = inverse_hesse(gk,k); % we ommit the negative sign at the search direction
+        % we ommit the negative sign at the search direction
+        if gd
+            pk = gk; % gradient descent
+        else
+            pk = inverse_hesse(gk,k); % BFGS direction
+        end
         Tpk = fastToeplitz(pk,Lam,r,N,L);
         QTpk = Q.*Tpk;
 
@@ -102,15 +134,29 @@ function z = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb, maxiter, maxcor, reg, gtol
         S(:,k) = sk;
         rho(k) = rhok;
 
-        if debug && mod(k,100)==0
+        if verb && mod(k,100)==0
             pause(0.01)
-            fprintf('\n%i\t gk: %e\tb: %e\t denom: %e\t sk: %e',k, norm(gk),b, denom, norm(sk));
+            fprintf('%i\t gk: %e\t res: %e\tb: %e\t denom: %e\n',k ,normgk, res, b, denom);
         end
         
         gk = gkk;
         zk = zkk;
     end
+
     z = zk;
-    fprintf('\nNot converged after %i steps, gnorm: %e\n', k-1, normgk)
+    iter = k;
+    resvec = resvec(1:iter);
+
+    if nargout >= 7
+        Hinv = get_inverse_hess(k);
+    end
+    
+    if verb
+        if normgk <= gtol
+            fprintf('BFGS converged after %i iterations, gnorm: %e\tres: %e\n', k, normgk, res)
+        else
+            fprintf('BFGS not converged after %i iterations, gnorm: %e\tres: %e\n', k, normgk, res)
+        end
+    end
     return
 end
