@@ -5,12 +5,21 @@
 
 clear
 close all
-rng(123) % random seed
+seed = 123;
+rng(seed) % random seed
 
 timestamp = datetime('now');
 timestamp.Format = 'yyyy-MM-dd_HHmmss';
 
 addpath('../functions')
+
+if ~exist('./data', 'dir')
+    mkdir('./data');
+end
+
+if ~exist('./figures', 'dir')
+    mkdir('./figures');
+end
 
 
 % LTI system (A,B)
@@ -84,7 +93,7 @@ rhs = [TtQw; -x0];
 
 
 
-save(strcat('./data/residuum_',string(timestamp),'.mat'))
+save(strcat('./data/residuum_',string(timestamp),'.mat'), 'timestamp', 'stateDim', 'inputDim', 'L', 'maxiter', 'maxcor', 'gtol', 'ftol', 'murange', 'seed')
 
 fig = figure;
 hold on

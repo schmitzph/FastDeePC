@@ -1,6 +1,9 @@
+%%%%%%%%% Test execution time of augmented Lagrangian limited-memory BFGS
+
 clear
 close all
-rng(123) % random seed
+seed = 123;
+rng(seed) % random seed
 
 timestamp = datetime('now');
 timestamp.Format = 'yyyy-MM-dd_HHmmss';
@@ -8,9 +11,9 @@ timestamp.Format = 'yyyy-MM-dd_HHmmss';
 addpath('../functions')
 
 % system dimensions
-stateDim_range = [10,20,30,40,50];%,60,70,80,100,120,140,160,180,200,220,240,260,280,300,350,400,450,500,600,700,800,900,1000];
+stateDim_range = [10,20,30,40,50,60,70,80,100,120,140,160,180,200,220,240,260,280,300,350,400,450,500,600,700,800,900,1000];
 
-tup = [[50;50], [60;60]]; % inputDimesnion and prediction horizon L
+tup = [[50;50], [100;100]]; % inputDimesnion and prediction horizon L
 
 % aL BFGS Parameters
 maxiter = 1000;
@@ -85,7 +88,7 @@ for k1 = 1:size(tup,2)
         results(end, 6) = flag;
         results(end, 7) = resvec(iter);
 
-        save(strcat('./data/exectime_',string(timestamp),'.mat'));
+        save(strcat('./data/exectime_',string(timestamp),'.mat'), 'results', 'timestamp', 'stateDim_range', 'tup', 'maxiter', 'maxcor', 'gtol', 'ftol', 'murange', 'k1', 'k2', 'seed');
     end
 end
 

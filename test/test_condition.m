@@ -1,6 +1,9 @@
+%%%%%%%%% Test preconditioning of augmented Lagrangian limited-memory BFGS
+
 clear
 close all
-rng(123) % random seed
+seed = 123;
+rng(seed) % random seed
 
 timestamp = datetime('now');
 timestamp.Format = 'yyyy-MM-dd_HHmmss';
@@ -9,10 +12,16 @@ addpath('../functions')
 
 % system dimensions
 stateDim_range = [10,20,30,40,50,60,70,80,100,120,140,160,180,200,220,240,260,280,300,350,400,450,500];
-inputDim = 20;
+inputDim = 50;
 
 % prediction horizon
 L = 50;
+
+% BFGS parameters
+maxiter = 1000;
+maxcor = 1000;
+gtol = 1e-6;
+verb = true;
 
 cond1 = zeros(length(stateDim_range),1);
 cond2 = zeros(length(stateDim_range),1);
@@ -20,6 +29,7 @@ cond2 = zeros(length(stateDim_range),1);
 for k = 1:length(stateDim_range)
     % generate system (A,B)
     stateDim = stateDim_range(k);
+    fprintf('\n\n\n\n########## New round #######\nstatedim: %i\tinputDim: %i\t L: %i\n', stateDim, inputDim, L);
     [A, B] = spawnSystem(stateDim, inputDim, 0.5, 0.9);
 
     % p.e. trajectory
@@ -46,11 +56,6 @@ for k = 1:length(stateDim_range)
     
     z0 = 2*rand(N-L+1,1)-1;
     lamb0 = rand(length(ind),1);
-    
-    maxiter = 1000;
-    maxcor = 1000;
-    gtol = 1e-6;
-    verb = true;
 
     [~, flag, ~, ~, Hinv] = lbfgs(z0,Lam,r,N,L,w,Q,ind,lamb0,maxiter,maxcor,reg,gtol,verb,false);
 
@@ -64,7 +69,7 @@ for k = 1:length(stateDim_range)
     cond2(k) = s2(1)/s2(L*inputDim+stateDim);
 
 
-    save(strcat('./data/condition_',string(timestamp),'.mat'));
+    save(strcat('./data/condition_',string(timestamp),'.mat'), 'cond1', 'cond2', 'timestamp', 'stateDim_range', 'L', 'inputDim', 'maxiter', 'maxcor', 'gtol', 'k', 'seed');
 end
 
 fig = figure;
