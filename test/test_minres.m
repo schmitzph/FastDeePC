@@ -33,7 +33,6 @@ m = r*L;
 %   s.t. xkk = Axk + Buk,     x0 = w0
 
 Q = ones(m,1); % [Qx,Qu]
-%Q(m-r+1:m-r+stateDim) = 0.0;
 reg = 0.0; % regularization parameter
 
 % (random) initial conditon x0 and reference stored in w

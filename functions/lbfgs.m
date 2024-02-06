@@ -106,6 +106,12 @@ function [z, flag, iter, resvec, Hinv] = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb
             flag = 0;
             break
         end
+
+        % check NaN
+        if any(isnan(zk))
+            flag = 3;
+            break
+        end
     
         % new search direction
         % we ommit the negative sign at the search direction
@@ -147,7 +153,7 @@ function [z, flag, iter, resvec, Hinv] = lbfgs(z0, Lam, r, N, L, w, Q, ind, lamb
     iter = k;
     resvec = resvec(1:iter);
 
-    if nargout >= 7
+    if nargout >= 5
         Hinv = get_inverse_hess(k);
     end
     

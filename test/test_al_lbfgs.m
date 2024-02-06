@@ -56,13 +56,13 @@ lamb = [];
 verb = true;
 
 
-[z, flag, iter, resvec] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, ftol, murange, z, lamb, verb, true);
+[z, flag, iter, resvec] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, ftol, murange, z, lamb, verb);
 
 % show trajectory
 [X_,U_] = z2trajectory(z, Lam, r, N, L, stateDim);
 
-% figure
-% hold on
-% plot(X_', 'r')
-% plot(U_', 'b');
+figure
+hold on
+plot(X_', 'r')
+plot(U_', 'b');
 

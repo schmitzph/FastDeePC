@@ -54,13 +54,13 @@ function [z, flag, iter, resvec] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, ma
         gd=false;
     end
 
-    resvec = zeros(maxiter*length(murange));
+    resvec = zeros(maxiter*length(murange),1);
 
     iter = 0;
     
     for j = 1:length(murange)
         mu = murange(j);
-        Q(ind) = Q(ind)+mu; % including penelty in weight
+        Q(ind) = mu; % including penelty in weight
         [z, flag, k, resvec_] = lbfgs(z,Lam,r,N,L,w,Q,ind,lamb,maxiter,maxcor,reg,gtol,verb,gd);
         resvec(iter+1:iter+k) = resvec_;
         v = fastToeplitz(z,Lam,r,N,L); % evaluate solution z
@@ -75,6 +75,11 @@ function [z, flag, iter, resvec] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, ma
             break
         else
             flag = 2;
+        end
+
+        if any(isnan(z))
+            flag = 3;
+            break
         end
     end
 

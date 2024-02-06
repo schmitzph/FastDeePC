@@ -7,6 +7,9 @@ clear
 close all
 rng(123) % random seed
 
+timestamp = datetime('now');
+timestamp.Format = 'yyyy-MM-dd_HHmmss';
+
 addpath('../functions')
 
 
@@ -37,8 +40,7 @@ m = r*L;
 %   min_(x,u)     sum_k ||xk-wx||_Qx^2 + ||uk-wu||_Qu^2 + reg*||uk||^2
 %   s.t. xkk = Axk + Buk,     x0 = w0
 
-Q = ones(m,1); % [Qx,Qu]
-%Q(m-r+1:m-r+stateDim) = 0.0;
+Q = ones(m,1); % OCP weights
 reg = 0.0; % regularization parameter
 
 % (random) initial conditon x0 and reference stored in w
@@ -56,62 +58,19 @@ lamb0 = rand(length(ind),1);
 maxiter = 1000;
 maxcor = 1000;
 gtol = 1e-6;
+ftol = 1e-8;
+verb = true;
 murange = linspace(1.0e1,1.0e+4,10);
 
 %%%%%%%%%%% augmented Lagrangian l-BFGS with fast matrix-vector multiplication
 fprintf('\n aL l-BFGS (fast matrix-vector) \n')
 
-z = z0;
-lamb = lamb0;
-Q_ = Q;
-
-iter_bfgs = 0; % iteration counter
-res_bfgs = [];
-
-for j = 1:length(murange)
-    mu = murange(j);
-    Q_(ind) = mu; % including penelty in weight
-    [z, iter, resvec, Hinv] = lbfgs_db(z,Lam,r,N,L,w,Q_,ind,lamb,maxiter,maxcor,reg,gtol);
-    v = fastToeplitz(z,Lam,r,N,L); % evaluate solution z
-
-    % calculate residuum
-    res_bfgs = [res_bfgs; resvec];
-
-    % update Lagrangian multiplier
-    err = v(ind)-x0;
-    lamb = lamb - mu*err;
-    fprintf('\nfeasability violation: %e\n',norm(err));
-
-    % increment iteration counter
-    iter_bfgs = iter_bfgs + iter;
-end
+[z_bfgs, flag_bfgs, iter_bfsgs, resvec_bfgs] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, ftol, murange, z0, lamb0, verb, false);
 
 %%%%%%%%%%% augmented Lagrangian gradient descent with fast matrix-vector multiplication
 fprintf('\n aL GD (fast matrix-vector) \n')
-z = z0;
-lamb = lamb0;
-Q_ = Q;
 
-iter_gd = 0; % iteration counter
-res_gd = [];
-
-for j = 1:length(murange)
-    mu = murange(j);
-    Q_(ind) = mu; % including penelty in weight
-    [z, iter, resvec] = lbfgs_db(z,Lam,r,N,L,w,Q_,ind,lamb,maxiter,maxcor,reg,gtol,true);
-    v = fastToeplitz(z,Lam,r,N,L); % evaluate solution z
-
-    % calculate residuum
-    res_gd = [res_gd; resvec];
-
-    % update Lagrangian multiplier
-    err = v(ind)-x0;
-    lamb = lamb - mu*err;
-    fprintf('\nfeasability violation: %e\n',norm(err));
-
-    % increment iteration counter
-    iter_gd = iter_gd + iter;
-end
+[z_gd, flag_gd, iter_gd, resvec_gd] = al_lbfgs(Lam, r, N, L, w, Q, ind, maxiter, maxcor, reg, gtol, ftol, murange, z0, lamb0, verb, true);
 
 
 %%%%%%%%%%% MINRES %%%%%%%%%
@@ -119,24 +78,30 @@ fprintf('\nMINRES fast Toeplitz matrix-vector multiplication\n')
 
 TtQw = transposeFastToeplitz(Q.*w,Lam,r,N,L);
 rhs = [TtQw; -x0];
-[vec,flag,~,iter_minres,res_minres] = minres(@optSys, rhs, 5e-10,10000,[],[],[], Lam, r, N, L, Q, ind);
+[vec,flag_minres,~,iter_minres,resvec_minres] = minres(@optSys, rhs, 5e-10,10000,[],[],[], Lam, r, N, L, Q, ind);
 
+
+
+
+
+save(strcat('./data/residuum_',string(timestamp),'.mat'))
 
 fig = figure;
 hold on
-plot(res_bfgs,'LineWidth', 1.5);
-plot(res_minres, '-.','LineWidth', 1.5);
-plot(res_gd, '--','LineWidth', 1.5);
-yline(gtol, ':');
+plot(resvec_bfgs,'-','LineWidth', 1.0);
+plot(resvec_minres, '-','LineWidth', 1.0);
+plot(resvec_gd, '-','LineWidth', 1.0);
+%set(gca, 'XScale', 'log')
 set(gca, 'YScale', 'log')
 legend('aL l-BFGS','MINRES', 'aL GD', 'Interpreter','latex','Location','northeast')
 xlabel('iteration', 'Interpreter','latex') 
-ylabel('residuum', 'Interpreter','latex')
-%xlim([0,4e+3])
-%ylim([1e+0,4e+4])
+ylabel('residual norm', 'Interpreter','latex')
+xlim([0,1e+4])
 hold off
 grid on
 grid minor
+
+savefig(fig, strcat('./figures/residuum_',string(timestamp),'.fig'));
 
 
 function fval = optSys(vec, Lam, r, N, L, Q, ind)
