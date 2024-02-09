@@ -23,12 +23,12 @@ end
 
 
 % LTI system (A,B)
-stateDim = 40;
-inputDim = 20;
+stateDim = 100;
+inputDim = 50;
 [A, B] = spawnSystem(stateDim, inputDim, 0.5, 0.9);
 
 % prediction horizon
-L = 20;
+L = 50;
 
 
 
